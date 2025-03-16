@@ -1,33 +1,36 @@
 from flask import Flask, request, jsonify
 import yfinance as yf
-from flask_cors import CORS  # Import CORS
+from flask_cors import CORS  
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)  
 
 @app.route("/get_price/<stock>", methods=["GET"])
 def get_price(stock):
     try:
+        if ".NS" not in stock.upper():
+            stock += ".NS"  # Auto-append .NS if missing
         ticker = yf.Ticker(stock)
         live_price = ticker.history(period="1d")["Close"].iloc[-1]
         return jsonify({stock: round(live_price, 2)})
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ✅ Fix for Multiple Stock Fetching
 @app.route("/get_prices", methods=["POST"])
 def get_prices():
     try:
         data = request.get_json()
-        stocks = data.get("stocks", [])  # Get stock symbols from frontend
+        stocks = data.get("stocks", [])
         prices = {}
 
         for stock in stocks:
+            if ".NS" not in stock.upper():
+                stock += ".NS"  # Auto-append .NS if missing
             ticker = yf.Ticker(stock)
             live_price = ticker.history(period="1d")["Close"].iloc[-1]
             prices[stock] = round(live_price, 2)
 
-        return jsonify(prices)  # Return JSON response
+        return jsonify(prices)
     except Exception as e:
         return jsonify({"error": str(e)})
 
