@@ -10,8 +10,7 @@ def home():
 
 @app.route('/get-data')
 def get_data():
-    # Fetch market data
-    fii_dii = fii_dii_cash()
+    fii_dii = nse_fiidii()  # Alternative function
     nifty_price = nse_eq("NIFTY 50")['lastPrice']
     sensex_price = nse_eq("SENSEX")['lastPrice']
     banknifty_price = nse_eq("BANKNIFTY")['lastPrice']
@@ -26,6 +25,7 @@ def get_data():
     }
 
     return jsonify(data)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
