@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
 import yfinance as yf
+from flask_cors import CORS  # Import CORS
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 @app.route("/get_price/<stock>", methods=["GET"])
 def get_price(stock):
@@ -12,12 +14,12 @@ def get_price(stock):
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# ✅ New Endpoint to Fetch Multiple Stock Prices
+# ✅ Fix for Multiple Stock Fetching
 @app.route("/get_prices", methods=["POST"])
 def get_prices():
     try:
         data = request.get_json()
-        stocks = data.get("stocks", [])  # List of stock symbols
+        stocks = data.get("stocks", [])  # Get stock symbols from frontend
         prices = {}
 
         for stock in stocks:
@@ -25,7 +27,7 @@ def get_prices():
             live_price = ticker.history(period="1d")["Close"].iloc[-1]
             prices[stock] = round(live_price, 2)
 
-        return jsonify(prices)
+        return jsonify(prices)  # Return JSON response
     except Exception as e:
         return jsonify({"error": str(e)})
 
