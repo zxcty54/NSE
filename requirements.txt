@@ -1,5 +1,6 @@
 flask
 gunicorn
 flask-cors
-jugaad-data
-pandas
+requests
+beautifulsoup4
+
