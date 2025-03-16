@@ -1,5 +1,5 @@
 flask
-nsetools
 gunicorn
 flask-cors
-requests
+jugaad-data
+pandas
