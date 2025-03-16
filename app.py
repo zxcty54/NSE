@@ -1,7 +1,12 @@
 from flask import Flask, jsonify
+
 from nsepython import *
 
 app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Welcome to the NSE Market Data API! Use /get-data to fetch market data."
 
 @app.route('/get-data')
 def get_data():
