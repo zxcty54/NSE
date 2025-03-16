@@ -1,7 +1,7 @@
-import os
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 import yfinance as yf
+
+app = Flask(__name__)  # ✅ Define 'app' before using @app.route
 
 @app.route("/get_price/<stock>", methods=["GET", "POST"])
 def get_price(stock=None):
@@ -18,7 +18,6 @@ def get_price(stock=None):
         return jsonify({"stock": stock, "current_price": round(current_price, 2)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
