@@ -1,37 +1,15 @@
 from flask import Flask, jsonify
-from nsetools import Nse
+from jugaad_data.nse import get_fii_dii_data
 
 app = Flask(__name__)
-nse = Nse()
 
-@app.route('/get-data')
-def get_data():
+@app.route('/fii-dii', methods=['GET'])
+def fii_dii():
     try:
-        # Fetching FII/DII data (nsetools doesn't provide this directly)
-        fii_dii_data = "FII/DII data is not available in nsetools"
-
-        # Fetching index prices
-        nifty_data = nse.get_index_quote("nifty 50")
-        sensex_data = nse.get_index_quote("s&p bse sensex")
-        banknifty_data = nse.get_index_quote("nifty bank")
-
-        # Extract prices safely
-        nifty_price = nifty_data.get("lastPrice", "Data Not Available")
-        sensex_price = sensex_data.get("lastPrice", "Data Not Available")
-        banknifty_price = banknifty_data.get("lastPrice", "Data Not Available")
-
-        # Prepare JSON response
-        data = {
-            "FII_DII": fii_dii_data,
-            "Nifty50": nifty_price,
-            "Sensex": sensex_price,
-            "BankNifty": banknifty_price
-        }
-
-        return jsonify(data)
-
+        data = get_fii_dii_data(days=10)  # Fetch last 10 days' data
+        return jsonify(data.to_dict(orient="records"))  # Convert DataFrame to JSON
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
