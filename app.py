@@ -1,99 +1,82 @@
 from flask import Flask, request, jsonify
 import yfinance as yf
-import threading
-import json
-import time
-import os
 from flask_cors import CORS
+import os
+import json
+import threading
+import time
 
 app = Flask(__name__)
 CORS(app)
 
-STOCK_PRICES_FILE = "stock_prices.json"
-UPDATE_INTERVAL = 15  # Fetch new prices every 15 seconds
+# Global variable to store stock prices
+stock_prices = {}
 
-# Load existing stock prices from file (if available)
-if os.path.exists(STOCK_PRICES_FILE):
-    with open(STOCK_PRICES_FILE, "r") as file:
-        stock_prices = json.load(file)
-else:
-    stock_prices = {}
-
+# Function to fetch stock price
 def get_stock_price(stock):
-    """Fetch the latest stock price from Yahoo Finance."""
+    """Fetch latest stock price from Yahoo Finance."""
     try:
-        if ".NS" not in stock.upper():
+        if not stock.upper().endswith(".NS"):
             stock += ".NS"
-        ticker = yf.Ticker(stock)
-        live_price = ticker.history(period="1d")["Close"].iloc[-1]
-        return round(live_price, 2)
-    except Exception:
-        return None  # Return None if price fetch fails
 
+        ticker = yf.Ticker(stock)
+        history_data = ticker.history(period="1d")
+
+        if history_data.empty:
+            return ticker.info.get("previousClose", 0)  # Use previous close if no data
+        
+        return round(history_data["Close"].iloc[-1], 2)
+    except Exception as e:
+        return str(e)
+
+# Background thread to update stock prices every 30 minutes
 def update_stock_prices():
-    """Background thread to fetch stock prices every 15 sec."""
     global stock_prices
     while True:
-        if stock_prices:  # Only fetch for stocks already requested
-            for stock in stock_prices.keys():
-                price = get_stock_price(stock)
-                if price is not None:
-                    stock_prices[stock] = price
-            
-            # Save to JSON file
-            with open(STOCK_PRICES_FILE, "w") as file:
-                json.dump(stock_prices, file)
-        
-        time.sleep(UPDATE_INTERVAL)  # Wait before next update
+        try:
+            if stock_prices:  # Fetch only for stored stocks
+                for stock in stock_prices.keys():
+                    stock_prices[stock] = get_stock_price(stock)
+                with open("prices.json", "w") as f:
+                    json.dump(stock_prices, f)
+        except Exception as e:
+            print("Error updating stock prices:", str(e))
+        time.sleep(1800)  # Update every 30 minutes
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Stock Price API is running!"
-
+# API to get stock price (from cache)
 @app.route("/get_price/<stock>", methods=["GET"])
 def get_price(stock):
-    """Return latest stock price from cache."""
     global stock_prices
-    stock = stock.upper() + ".NS"
-    price = stock_prices.get(stock)
-
-    if price is None:
+    if stock in stock_prices:
+        return jsonify({stock: stock_prices[stock]})
+    else:
         price = get_stock_price(stock)
-        if price is not None:
-            stock_prices[stock] = price
-            with open(STOCK_PRICES_FILE, "w") as file:
-                json.dump(stock_prices, file)
-    
-    return jsonify({stock: price if price else "Error fetching price"})
+        stock_prices[stock] = price
+        return jsonify({stock: price})
 
+# API to get multiple stock prices
 @app.route("/get_prices", methods=["POST"])
 def get_prices():
-    """Return prices for multiple stocks."""
-    global stock_prices
     try:
         data = request.get_json()
-        stocks = [s.upper() + ".NS" for s in data.get("stocks", [])]
+        stocks = data.get("stocks", [])
         prices = {}
 
         for stock in stocks:
-            price = stock_prices.get(stock)
-            if price is None:
-                price = get_stock_price(stock)
-                if price is not None:
-                    stock_prices[stock] = price
-            prices[stock] = price if price else "Error fetching price"
-
-        with open(STOCK_PRICES_FILE, "w") as file:
-            json.dump(stock_prices, file)
+            if stock in stock_prices:
+                prices[stock] = stock_prices[stock]
+            else:
+                prices[stock] = get_stock_price(stock)
+                stock_prices[stock] = prices[stock]
 
         return jsonify(prices)
     except Exception as e:
         return jsonify({"error": str(e)})
 
+# Start background thread
+thread = threading.Thread(target=update_stock_prices, daemon=True)
+thread.start()
+
 if __name__ == '__main__':
-    # Start background price updater
-    threading.Thread(target=update_stock_prices, daemon=True).start()
-    
-    # Start Flask server
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
